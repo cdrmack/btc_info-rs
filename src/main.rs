@@ -7,8 +7,10 @@ use tokio;
 use serde_json;
 
 mod blockchain_status;
+mod blockchain_address;
 
 use crate::blockchain_status::BlockchainStatus;
+use crate::blockchain_address::BlockchainAddress;
 
 const ENDPOINT: &str = "https://btcbook.nownodes.io/api/";
 
@@ -28,8 +30,24 @@ async fn send_request(url: &str) -> String {
 	.expect("Failed to convert payload")
 }
 
-fn main() {
+fn blockchain_status_request() -> BlockchainStatus {
     let response = send_request(&ENDPOINT);
-    let parsed: BlockchainStatus = serde_json::from_str(&response).expect("Cannot parse response (JSON)");
-    println!("QUERY {} (chain: {})", parsed.blockbook.coin, parsed.backend.chain);
+    serde_json::from_str(&response).expect("Cannot parse response (JSON)")
+}
+
+fn blockchain_address_request(address: &str) -> BlockchainAddress {
+    let response = send_request(&[ENDPOINT, "v2/address/", &address].join(""));
+    serde_json::from_str(&response).expect("Cannot parse response (JSON)")
+}
+
+fn main() {
+    let blockchain_status = blockchain_status_request();
+    println!("QUERY {} (chain: {})", blockchain_status.blockbook.coin, blockchain_status.backend.chain);
+
+    let address = dotenv::var("ADDRESS").expect("Cannot find ADDRESS");
+    let address_status = blockchain_address_request(&address);
+    println!("QUERY address {}", address_status.address);
+    for (pos, txid) in address_status.txids.iter().enumerate() {
+	println!("{}: {}", pos, txid);
+    }
 }
